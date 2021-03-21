@@ -1,6 +1,7 @@
 /*
 PROJECT ESILV PIX 2021 : Connected hive
 ............................. TRANSMITTER
+AUTHOR : Théo PATARD
 VERSION : 
 Libraries : VirtualWire http://www.airspayce.com/mikem/arduino/VirtualWire/index.html
 */
