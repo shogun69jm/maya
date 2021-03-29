@@ -3,7 +3,11 @@ PROJECT ESILV PIX 2021 : Connected hive
 ............................. TRANSMITTER
 AUTHOR : Théo PATARD
 VERSION : 
-Libraries : VirtualWire http://www.airspayce.com/mikem/arduino/VirtualWire/index.html
+Libraries : 
+ VirtualWire http://www.airspayce.com/mikem/arduino/VirtualWire/index.html
+ DHT : DHT Sensor Library by ADADFRUIT
+Objects :
+  Transmitter RF-434
 */
 
 
@@ -32,7 +36,7 @@ void setup()
 void loop()
 {   
     String t_str = "T = " + String(dht.readTemperature());
-    String h_str = " H = " + String(dht.readHumidity());
+    String h_str = "H = " + String(dht.readHumidity());
     char tab[27];
     
     for(int i=0; i< 8; i++)
