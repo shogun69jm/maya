@@ -6,6 +6,8 @@ Project     : Connected Hive
 Subproject  : Receiver & Display
 */
 
+#define RECEIVER_PROG_VERSION 0.01
+
 #include <VirtualWire.h> // On inclut la librairie VirtualWire
 #include <VirtualWire_Config.h>
 #include <LiquidCrystal.h>
@@ -25,7 +27,8 @@ Subproject  : Receiver & Display
 #define _RECEIVER_SPEED 2400 //2000 bauds
 #define _LCD_MAXLINE 2
 #define _LCD_MAXCHAR 16
-#define _RUNNING_DELAY 5000 //5 seconds de pause
+#define _RUNNING_DELAY 2000 //5 seconds de pause
+#define _TIMEOUT 5000 //Timeout de 5 seconds pour le récepteur, si aucune réception
 
 RTC_DS3231 myRTC; // DS3231 RTC module
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -41,14 +44,8 @@ uint8_t counter = 0;
 //---------------------------------------------------------------- SETUP    
 void setup()
 {
-  //Setup banner
   Serial.begin(9600); // Initialisation du port série pour avoir un retour sur le serial monitor
-  Serial.println("RECEIVER BOARD SETUP..........");
-
-  Serial.print("compiled: ");
-  Serial.print(__DATE__);
-  Serial.print(" - ");
-  Serial.println(__TIME__);
+  bannerDisplay();
 
   //RTC setup
   myRTC.adjust(DateTime(F(__DATE__), F(__TIME__)));  
@@ -70,9 +67,12 @@ void setup()
   }
 
   //LCD Setup
+  myLCD.noDisplay();
   myLCD.begin(_LCD_MAXCHAR,_LCD_MAXLINE); // Définit la taille du message max, ici donc la taille de l'écran
-  myLCD.setCursor(0,0); // Définit la position du curseur au début   
-  //Serial.println("Receiving...");
+  myLCD.setCursor(0,0); // Définit la position du curseur au début
+  myLCD.print("PIX 2021");
+  myLCD.print("Connected Hive");   
+  myLCD.display();
 
   //RECEIVER Setup  
   vw_set_rx_pin(_RECEIVER_PIN);
@@ -89,32 +89,41 @@ void loop()
 
   DateTime now = myRTC.now();
   
-  vw_wait_rx(); // Attend qu'un message soit reçu
+ // vw_wait_rx(); // Attend qu'un message soit reçu
   
-  if (vw_get_message(buf, &buflen)) // On copie le message, qu'il soit corrompu ou non
-  {
-    // Flahs la led pour montrer la réception
-    digitalWrite(_LED_PIN,true);
-  
-    //Serial Monitor
-    Serial.print("Receive >> ");
-    Serial.print(getDateTime());
-    Serial.print(" > ");
-    Serial.print(counter);
-    Serial.print(" ");
-    Serial.println((char*)buf);
-
-    //LCD Display
-    myLCD.clear();
-    myLCD.setCursor(0,0);
-    myLCD.print(getDateTime());
-    myLCD.setCursor(0,1);
-    myLCD.print((char*)buf);// Affiche le message sur l'écran
-
-    digitalWrite(_LED_PIN,false);
+  if (vw_wait_rx_max(_TIMEOUT)){
+    if (vw_get_message(buf, &buflen)) // On copie le message, qu'il soit corrompu ou non
+    {
+      // Flahs la led pour montrer la réception
+      digitalWrite(_LED_PIN,true);
     
-    delay(_RUNNING_DELAY); //Vitesse inférieur à celle de l'emetteur, on prend son temps !
-  } 
+      //Serial Monitor
+      Serial.print("RCV >> ");
+      Serial.print(getDateTime());
+      Serial.print(" > ");
+      Serial.print(counter);
+      Serial.print(" ");
+      Serial.println((char*)buf);
+
+      myLCD.clear();
+      myLCD.setCursor(0,0);
+      myLCD.print(getDateTime());
+      myLCD.setCursor(0,1);
+      myLCD.display();
+      myLCD.print((char*)buf);// Affiche le message sur l'écran
+
+      digitalWrite(_LED_PIN,false);
+      
+      delay(_RUNNING_DELAY); //Vitesse inférieur à celle de l'emetteur, on prend son temps !
+    }
+}
+else
+{
+  Serial.println("No signal...");
+  myLCD.clear();
+  myLCD.setCursor(0,0);
+  myLCD.print("No signal...");
+}
 }
 
 //---------------------------------------------------------------- Fonction donnant la date / heure
@@ -132,4 +141,17 @@ String getDateTime()
   mySecond = now.second();
    
   return myHour+":"+myMinute+":"+mySecond+" "+myDay+"."+myMonth+"."+myYear;
+}
+
+//---------------------------------------------------------------- Banner
+void bannerDisplay(){
+  delay(2000);
+  Serial.println("RECEIVER BOARD SETUP..........");
+  Serial.print("Version : ");
+  Serial.println(RECEIVER_PROG_VERSION);
+  Serial.print("compiled: ");
+  Serial.print(__DATE__);
+  Serial.print(" - ");
+  Serial.println(__TIME__);
+  Serial.println("Reception is starting...");
 }

@@ -1,18 +1,17 @@
 /*Todo
 Créer une structure de trame réseau
 cryto d'identification
-dip ? comment l'utiliser pour le code ?
-la version à transférer pour l'init
 la température C
 la température F
 l'humidité
 les 4 poids
-
+Voir les fonctions sprintf... pour transformer proprement les buf en string et vice versa
+Comment vider proprement le serial monitor
 Regarder comment fonctionnent les fonctions de send/receive
-Mettre des diodes pour signaler la réception et l'emission
 Comment on enregistre les données ?
 Chargeur solaire
 Recherche sur des algo abeilles
+Revoir les tableaux de char outstring...
 */
 
 /*
@@ -23,45 +22,67 @@ Project     : Connected Hive
 Subproject  : Transmitter & Sensors (Temperature, humididy and load)
 */
 
+#define TRANSMITTER_PROG_VERSION 0.01
+
 #include <VirtualWire.h>
 #include <VirtualWire_Config.h>
 #include <DHT.h>
+#include <HX711.h>
 
-#define _DHT_PIN 8 // Definit la broche de l'Arduino sur laquelle la broche DATA du capteur est reliee 
+//SENSOR
+#define _DHT_PIN 13 // Definit la broche de l'Arduino sur laquelle la broche DATA du capteur est reliee 
 #define _DHTTYPE DHT11 // Definit le type de capteur utilise
+
+//TRANSMITTER
 #define _TRANSMITTER_PIN 12 //Pin 12
-#define _LED_PIN 11 //Pin 11
 #define _TRANSMITTER_SPEED 2400 //2000 bauds
+#define _LED_PIN 11 //Pin 11
+
+//LOADCELL
+#define LOADCELL_DOUT_PIN1  3
+#define LOADCELL_SCK_PIN1  2
+#define calibration_factor1 7050.0 
+#define LOADCELL_DOUT_PIN2  5
+#define LOADCELL_SCK_PIN2  4
+#define calibration_factor2 7050.0 
+#define LOADCELL_DOUT_PIN3  7
+#define LOADCELL_SCK_PIN3  6
+#define calibration_factor3 7050.0 
+#define LOADCELL_DOUT_PIN4  9
+#define LOADCELL_SCK_PIN4  8
+#define calibration_factor4 7050.0 
+
+//MISC
 #define _SERIALMONITOR_SPEED 9600
 #define _BUFFER_MAXLEN 128
-
-#define _DIP1_PIN 2
-#define _DIP2_PIN 3
-#define _DIP3_PIN 4
-
-
+#define _DIP1_PIN 10
 #define _RUNNING_DELAY 2000 //2 seconds
 
 // Hymidity & Temperature sensor
 DHT myDHT(_DHT_PIN,_DHTTYPE); // Declare un objet de type DHT
+
+//LoadCell & HX711
+HX711 scale1;
+HX711 scale2;
+HX711 scale3;
+HX711 scale4;
 
 //---------------------------------------------------------------- SETUP    
 void setup()
 {
 
 // Init du debug monitor   
-Serial.write(27);       // ESC command
-Serial.print("[2J");    // clear screen command
-Serial.write(27);  
+//
 Serial.begin(_SERIALMONITOR_SPEED); // Initialisation du port série pour avoir un retour sur le serial monitor
-Serial.println("Début transmission"); // Petit message pour tester que l'interface sérial se lance bien
+//bannerDisplay();
 
 // Init des PIN Arduino utilisés
-pinMode(_TRANSMITTER_PIN,OUTPUT);   //Emetteur
-pinMode(_DHT_PIN, INPUT);           //Capteur Humidité et température
+pinMode(_TRANSMITTER_PIN,INPUT);   //Emetteur
+pinMode(_DHT_PIN, INPUT);          //Capteur Humidité et température
+pinMode(_LED_PIN, INPUT);          //Led
 pinMode(_DIP1_PIN, INPUT_PULLUP);   //DIP PIN 1 activation de la résistance interne de type Pull Up
-pinMode(_DIP2_PIN, INPUT_PULLUP);   //DIP PIN 2 activation de la résistance interne de type Pull Up
-pinMode(_DIP3_PIN, INPUT_PULLUP);   //DIP PIN 3 activation de la résistance interne de type Pull Up
+//pinMode(_DIP2_PIN, INPUT_PULLUP);   //DIP PIN 2 activation de la résistance interne de type Pull Up
+//pinMode(_DIP3_PIN, INPUT_PULLUP);   //DIP PIN 3 activation de la résistance interne de type Pull Up
 
 // Init du détecteur DHT   
 myDHT.begin();
@@ -73,15 +94,22 @@ vw_setup(_TRANSMITTER_SPEED);     // initialisation de la librairie VirtualWire 
 // Init de la LED
 digitalWrite(_LED_PIN, HIGH);
 
+// Init des LoadCell
+initScale(1);
+initScale(2);
+initScale(3);
+initScale(4);
+
 }
 
 //---------------------------------------------------------------- LOOP                                       
 void loop()
 {   
 static char outstr1[16], outstr2[16];
+static char outl1[8],outl2[8],outl3[8],outl4[8];
 static String myDIP;
-
-// Idenfication du numéro de l'émetteur
+//Serial.println("LOOP");
+//Idenfication du numéro de l'émetteur avec le DIP
 myDIP = String(readDIP());
 
 // Reading temperature or humidity takes about 250 milliseconds!
@@ -100,7 +128,24 @@ String t_str = String(outstr1)+"C";
 String h_str = String(outstr2)+"%";
 String myMail = "R"+ myDIP + " " + t_str + " " + h_str;
 
-//Serial.println(myMail);
+float l1 = scale1.get_units();
+float l2 = scale2.get_units();
+float l3 = scale3.get_units();
+float l4 = scale4.get_units();
+dtostrf(l1,2,1,outl1);
+dtostrf(l2,2,1,outl2);
+dtostrf(l3,2,1,outl3);
+dtostrf(l4,2,1,outl4);
+String sl1 = String(outl1) + "lbs";
+String sl2 = String(outl2) + "lbs";
+String sl3 = String(outl3) + "lbs";
+String sl4 = String(outl4) + "lbs";
+String myMail2 = "L1:"+sl1+" L2:"+sl2+" L3:"+sl3+" L4:"+sl4;
+
+if (l1 * l2 * l3 * l4 > 1 ){
+Serial.print("DBG >>");
+Serial.println(myMail2);
+}
 
     if(digitalRead(_TRANSMITTER_PIN) == LOW)
     {
@@ -109,10 +154,10 @@ String myMail = "R"+ myDIP + " " + t_str + " " + h_str;
       //convertit ma chaine en un buffer de char
       msg = string2Buffer(myMail);
     
-      String toto ;
-      toto = (char*)msg;
-      Serial.print("Send >> "); // On signale le début de l'envoi
-      Serial.println(toto);
+      String myPacket ;
+      myPacket = (char*)msg;
+      Serial.print("SND >> "); // On signale le début de l'envoi
+      Serial.println(myPacket);
 
       digitalWrite(_LED_PIN, true); // Flash a light to show transmitting
       vw_send((uint8_t *)msg, strlen(msg));
@@ -124,6 +169,11 @@ String myMail = "R"+ myDIP + " " + t_str + " " + h_str;
       //Ne pas oublier de libérer l'allocation !
       free(msg);
     }
+  else {
+    Serial.println("No signal transmitted...");
+  }
+
+
 }
 
 //---------------------------------------------------------------- LECTURE DU DIP
@@ -131,10 +181,9 @@ unsigned short readDIP() {
 
  unsigned short dmxVal = 0;
 
- if(digitalRead(_DIP3_PIN) == LOW) dmxVal += 1;
- if(digitalRead(_DIP2_PIN) == LOW) dmxVal += 2;
- if(digitalRead(_DIP1_PIN) == LOW) dmxVal += 4;
- 
+ if(digitalRead(_DIP1_PIN) == LOW) dmxVal += 1;
+ //if(digitalRead(_DIP2_PIN) == LOW) dmxVal += 2;
+ //if(digitalRead(_DIP3_PIN) == LOW) dmxVal += 4;
  
  return dmxVal;
 }
@@ -148,3 +197,51 @@ char* string2Buffer(String myMail){
   }
   return  buffer;
 }
+
+//---------------------------------------------------------------- Banner
+void bannerDisplay(){
+  //Serial.write(12);       // ESC command
+  //Serial.write("[2J");    // clear screen command
+  //Serial.write(27);
+  //Serial.println();
+  delay(2000);  
+  Serial.println("TRANSMITTER BOARD SETUP..........");
+  Serial.print("Version : ");
+  Serial.println(TRANSMITTER_PROG_VERSION);
+  Serial.print("compiled: ");
+  Serial.print(__DATE__);
+  Serial.print(" - ");
+  Serial.println(__TIME__);
+  Serial.println("Transmission is starting...");
+  delay(2000);
+}
+
+//---------------------------------------------------------------- Init LoaCell scale
+void initScale(int loadcell){
+
+  switch (loadcell){
+  case 1:
+    scale1.begin(LOADCELL_DOUT_PIN1, LOADCELL_SCK_PIN1);
+    scale1.set_scale(calibration_factor1);
+    scale1.tare();
+    break;
+  case 2:
+    scale2.begin(LOADCELL_DOUT_PIN2, LOADCELL_SCK_PIN2);
+    scale2.set_scale(calibration_factor2);
+    scale2.tare(); 
+  case 3:
+    scale3.begin(LOADCELL_DOUT_PIN3, LOADCELL_SCK_PIN3);
+    scale3.set_scale(calibration_factor3);
+    scale3.tare();
+    break;
+  case 4:
+    scale4.begin(LOADCELL_DOUT_PIN4, LOADCELL_SCK_PIN4);
+    scale4.set_scale(calibration_factor4); 
+    scale4.tare(); 
+    break;
+  default:
+    // statements
+    break;
+  }
+}
+
