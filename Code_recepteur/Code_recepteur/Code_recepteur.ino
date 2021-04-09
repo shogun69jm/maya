@@ -110,7 +110,16 @@ void loop()
       myLCD.print(getDateTime());
       myLCD.setCursor(0,1);
       myLCD.display();
-      myLCD.print((char*)buf);// Affiche le message sur l'écran
+
+      char* carac = malloc(buflen * sizeof(char));
+      carac = (char *)buf;
+      String myT = String(carac[0])+String(carac[1])+String(carac[2])+String(carac[3]); // 4 premiers caractères pour la température
+      String myH = String(carac[4])+String(carac[5]); // 2 caractères suivants pour l'humidité
+      //float T = myT.toFloat();
+      //float H = myH.toFloat();
+      myLCD.print(myT);
+      myLCD.write((char)223);
+      myLCD.print("C "+myH+"%");
 
       digitalWrite(_LED_PIN,false);
       

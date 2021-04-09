@@ -70,11 +70,9 @@ HX711 scale4;
 //---------------------------------------------------------------- SETUP    
 void setup()
 {
-
 // Init du debug monitor   
-//
 Serial.begin(_SERIALMONITOR_SPEED); // Initialisation du port série pour avoir un retour sur le serial monitor
-//bannerDisplay();
+bannerDisplay();
 
 // Init des PIN Arduino utilisés
 pinMode(_TRANSMITTER_PIN,INPUT);   //Emetteur
@@ -99,18 +97,21 @@ initScale(1);
 initScale(2);
 initScale(3);
 initScale(4);
-
 }
 
 //---------------------------------------------------------------- LOOP                                       
 void loop()
 {   
-static char outstr1[16], outstr2[16];
+//static char outstr1[4], outstr2[2];
 static char outl1[8],outl2[8],outl3[8],outl4[8];
 static String myDIP;
-//Serial.println("LOOP");
+
 //Idenfication du numéro de l'émetteur avec le DIP
 myDIP = String(readDIP());
+
+//Initialisation des chaines
+char outstr1[7]={'0','0','.','0','\0',' '};
+char outstr2[4]={'0','0','\0',' '};
 
 // Reading temperature or humidity takes about 250 milliseconds!
 // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -118,15 +119,16 @@ float h = myDHT.readHumidity();
 // Read temperature as Celsius
 float tc = myDHT.readTemperature();
 // Read temperature as Fahrenheit
-float tf = myDHT.readTemperature(true);
+//float tf = myDHT.readTemperature(true);
 // Formatage Température sur 3 chiffres dont 1 décimale
-dtostrf(tc,3,1,outstr1);
+dtostrf(tc,4,1,outstr1);
 // Formatage Humidité sur 2 chiffres dont O décimale
 dtostrf(h,2,0,outstr2);
 
-String t_str = String(outstr1)+"C";
-String h_str = String(outstr2)+"%";
-String myMail = "R"+ myDIP + " " + t_str + " " + h_str;
+String t_str = String(outstr1);
+String h_str = String(outstr2);
+//String myMail = "R"+ myDIP + " " + t_str +"C" + " " + h_str+"%";
+String myMail = t_str + h_str;
 
 float l1 = scale1.get_units();
 float l2 = scale2.get_units();
@@ -136,44 +138,47 @@ dtostrf(l1,2,1,outl1);
 dtostrf(l2,2,1,outl2);
 dtostrf(l3,2,1,outl3);
 dtostrf(l4,2,1,outl4);
-String sl1 = String(outl1) + "lbs";
-String sl2 = String(outl2) + "lbs";
-String sl3 = String(outl3) + "lbs";
-String sl4 = String(outl4) + "lbs";
+String sl1 = String(outl1);
+String sl2 = String(outl2);
+String sl3 = String(outl3);
+String sl4 = String(outl4);
 String myMail2 = "L1:"+sl1+" L2:"+sl2+" L3:"+sl3+" L4:"+sl4;
+//myMail += sl1+sl2;
 
 if (l1 * l2 * l3 * l4 > 1 ){
 Serial.print("DBG >>");
 Serial.println(myMail2);
 }
 
-    if(digitalRead(_TRANSMITTER_PIN) == LOW)
-    {
-      //char *msg = tab;
-      char * msg ;
-      //convertit ma chaine en un buffer de char
-      msg = string2Buffer(myMail);
-    
-      String myPacket ;
-      myPacket = (char*)msg;
-      Serial.print("SND >> "); // On signale le début de l'envoi
-      Serial.println(myPacket);
+  if(digitalRead(_TRANSMITTER_PIN) == LOW)
+  {
+    //char *msg = tab;
+    char * msg ;
+    //convertit ma chaine en un buffer de char
+    msg = string2Buffer(myMail);
 
-      digitalWrite(_LED_PIN, true); // Flash a light to show transmitting
-      vw_send((uint8_t *)msg, strlen(msg));
-      vw_wait_tx(); // Wait until the whole message is gone
-      digitalWrite(_LED_PIN, false);
 
-      delay(_RUNNING_DELAY); // Et on attend 2s pour éviter que deux messages se superpose
+    String myPacket = "";
+    myPacket = (char*)msg;
+    myPacket += "\0";
+    Serial.print("SND >> "); // On signale le début de l'envoi
+    Serial.print(myMail);
+    Serial.print(" >>> ");
+    Serial.println(myPacket);
 
-      //Ne pas oublier de libérer l'allocation !
-      free(msg);
-    }
+    digitalWrite(_LED_PIN, true); // Flash a light to show transmitting
+    vw_send((uint8_t *)msg, strlen(msg));
+    vw_wait_tx(); // Wait until the whole message is gone
+    digitalWrite(_LED_PIN, false);
+
+    delay(_RUNNING_DELAY); // Et on attend 2s pour éviter que deux messages se superpose
+
+    //Ne pas oublier de libérer l'allocation !
+    free(msg);
+  }
   else {
     Serial.println("No signal transmitted...");
   }
-
-
 }
 
 //---------------------------------------------------------------- LECTURE DU DIP
@@ -191,8 +196,11 @@ unsigned short readDIP() {
 //---------------------------------------------------------------- CONVERSION String vers un tab de char
 char* string2Buffer(String myMail){
   int len = myMail.length();
-  char * buffer = malloc(len * sizeof(char));
+  //char *buffer_p = (char*)malloc(sizeof(char)*bufferSize);
+  char *buffer = (char*)malloc(sizeof(char)*len);
+  //char* buffer = malloc(len * sizeof(char));
   for (int i = 0 ; i <len; i++){
+    buffer[i] = "";
     buffer[i] = myMail.charAt(i);
   }
   return  buffer;
@@ -200,20 +208,18 @@ char* string2Buffer(String myMail){
 
 //---------------------------------------------------------------- Banner
 void bannerDisplay(){
-  //Serial.write(12);       // ESC command
-  //Serial.write("[2J");    // clear screen command
-  //Serial.write(27);
-  //Serial.println();
   delay(2000);  
-  Serial.println("TRANSMITTER BOARD SETUP..........");
-  Serial.print("Version : ");
-  Serial.println(TRANSMITTER_PROG_VERSION);
-  Serial.print("compiled: ");
-  Serial.print(__DATE__);
-  Serial.print(" - ");
-  Serial.println(__TIME__);
-  Serial.println("Transmission is starting...");
-  delay(2000);
+  if (Serial.available()){
+    Serial.println("TRANSMITTER BOARD SETUP..........");
+    Serial.print("Version : ");
+    Serial.println(TRANSMITTER_PROG_VERSION);
+    Serial.print("compiled: ");
+    Serial.print(__DATE__);
+    Serial.print(" - ");
+    Serial.println(__TIME__);
+    Serial.println("Transmission is starting...");
+    //delay(2000);
+  }
 }
 
 //---------------------------------------------------------------- Init LoaCell scale
@@ -244,4 +250,8 @@ void initScale(int loadcell){
     break;
   }
 }
+
+//---------------------------------------------------------------- PacketFormat
+//char* formatPacket()
+
 
