@@ -31,7 +31,7 @@
 #define calibration_factor1 7050.0 
 #define LOADCELL_DOUT_PIN2  5
 #define LOADCELL_SCK_PIN2  4
-#define calibration_factor2 7050.0 
+#define calibration_factor2 2050.0 
 #define LOADCELL_DOUT_PIN3  7
 #define LOADCELL_SCK_PIN3  6
 #define calibration_factor3 7050.0 
@@ -47,7 +47,9 @@ HX711 scale4;
 void setup() {
   Serial.begin(9600);
   Serial.println();
-  Serial.print("HX711 scale demo. Calibration factors  ");
+  Serial.println("HX711 scale demo. Calibration factors  ");
+
+  
   Serial.print("Calibration factor 1 :");
   Serial.println(calibration_factor1);
   Serial.print("Calibration factor 2 :");
@@ -61,6 +63,11 @@ void setup() {
   initScale(2);
   initScale(3);
   initScale(4);
+
+  long zero_factor = scale1.read_average(); //Get a baseline reading
+  Serial.print("Zero factor: "); //This can be used to remove the need to tare the scale. Useful in permanent scale projects.
+  Serial.println(zero_factor);
+
 
   /*
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
