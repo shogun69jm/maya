@@ -1,28 +1,18 @@
-
-
-//JM usbmodem1301
-// Const ou Define
-
 /*
 ESILV PIX 2021
 Author      : Théo Patard
 Date        : 27/03/2021
 Project     : Connected Hive
-Subproject  : Receiver & Display
+Subproject  : Receiver & Display & Save
 */
 
 #define RECEIVER_PROG_VERSION 0.01
 
 #include <VirtualWire.h>
-#include <VirtualWire_Config.h>
 #include <RTClib.h>
 #include <LiquidCrystal.h>
-#include <SD.h>
-#include <SPI.h>
-
+//#include <SD.h>
 //#include <SPI.h>
-#include <SD.h>
-
 
 // Arduino UNO Pin
 #define _RECEIVER_PIN 9 //Pin 11
@@ -150,17 +140,8 @@ void loop()
       String mesure[8][2] = {"",""};
       int j=0;
       token = strtok((char*)buf,";");
-      mesure[0][1]="Code"; 
-      mesure[1][1]="Id"; 
-      mesure[2][1]="T"; 
-      mesure[3][1]="H"; 
-      mesure[4][1]="L1"; 
-      mesure[5][1]="L2"; 
-      mesure[6][1]="L3"; 
-      mesure[7][1]="L4";
+      mesure[0][1]="Code"; mesure[1][1]="Id"; mesure[2][1]="T"; mesure[3][1]="H"; mesure[4][1]="L1"; mesure[5][1]="L2"; mesure[6][1]="L3"; mesure[7][1]="L4";
       mesure[j][0] = String(token);
-      //Serial.println(token);
-      //Serial.println(mesure[j][0]);
       while(token)
       {
         //Serial.println(token);
@@ -185,14 +166,7 @@ void loop()
       myLCD.setCursor(0,1);
       myLCD.display();
 
-      //sprintf("%2.1f %2f")
-
-      //char* carac = malloc(buflen * sizeof(char));
-      //carac = (char *)buf;
-      //String myT = String(carac[0])+String(carac[1])+String(carac[2])+String(carac[3]); // 4 premiers caractères pour la température
-      //String myH = String(carac[4])+String(carac[5]); // 2 caractères suivants pour l'humidité
-      //float T = myT.toFloat();
-      //float H = myH.toFloat(); S
+      //Afficheur LCD
       String myT = mesure[2][0];
       String myH = mesure[3][0];
       String myL = mesure[4][0];
@@ -200,10 +174,12 @@ void loop()
       myLCD.write((char)223);
       myLCD.print("C "+myH+"% "+myL+"g");
 
+      //LED flash
       digitalWrite(_LED_PIN,false);
       
+      //Pause
       delay(_RUNNING_DELAY); //Vitesse inférieur à celle de l'emetteur, on prend son temps !
-      //free(carac);
+      free(token);
     }
 }
 else

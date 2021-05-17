@@ -1,4 +1,5 @@
 /*Todo
+//JM usbmodem1401
 Créer une structure de trame réseau
 cryto d'identification
 Comment vider proprement le serial monitor
@@ -56,6 +57,7 @@ Subproject  : Transmitter & Sensors (Temperature, humididy and load)
 #define _DIP1_PIN 10
 #define _RUN_PAUSE 2000 //2 seconds
 
+const bool DEBUG = true;
 
 // Hymidity & Temperature sensor
 DHT myDHT(_DHT_PIN,_DHTTYPE); // Declare un objet de type DHT
@@ -73,25 +75,14 @@ int looptransmit = 0;
 //---------------------------------------------------------------- SETUP    
 void setup()
 {
-// Init du debug monitor   
-Serial.begin(_SERIALMONITOR_SPEED); // Initialisation du port série pour avoir un retour sur le serial monitor
-    Serial.println("TRANSMITTER BOARD SETUP..........");
-    Serial.print("Version : ");
-    Serial.println(TRANSMITTER_PROG_VERSION);
-    Serial.print("compiled: ");
-    Serial.print(__DATE__);
-    Serial.print(" - ");
-    Serial.println(__TIME__);
-    Serial.println("Transmission is starting...");
-//bannerDisplay();
+// Init du serial monitor pour debug   
+if (DEBUG) bannerDisplay();
 
 // Init des PIN Arduino utilisés
 pinMode(_TRANSMITTER_PIN,INPUT);   //Emetteur
 pinMode(_DHT_PIN, INPUT);          //Capteur Humidité et température
 pinMode(_LED_PIN, INPUT);          //Led
 pinMode(_DIP1_PIN, INPUT_PULLUP);   //DIP PIN 1 activation de la résistance interne de type Pull Up
-//pinMode(_DIP2_PIN, INPUT_PULLUP);   //DIP PIN 2 activation de la résistance interne de type Pull Up
-//pinMode(_DIP3_PIN, INPUT_PULLUP);   //DIP PIN 3 activation de la résistance interne de type Pull Up
 
 // Init du détecteur DHT   
 myDHT.begin();
@@ -164,15 +155,14 @@ myTemplate = "%s;%s;%s;%s;%s;%s;%s;%s";
 sprintf(myBuffer,myTemplate,hi,id,outstrT,outstrH, outstrL1,outstrL2,outstrL3,outstrL4);
 
 //............................................................ DEBUG
-Serial.print("DBG MESSG=");
+if (DEBUG) Serial.print("DBG MESSG=");
 String myPacket = "";
 myPacket = (char*)myBuffer;
 myPacket += "\0";
-Serial.println(myPacket);
+if (DEBUG) Serial.println(myPacket);
 
   if(digitalRead(_TRANSMITTER_PIN) == LOW)
   {
-    
     //Je compte le nb de transmission
     looptransmit++;
 
@@ -184,21 +174,23 @@ Serial.println(myPacket);
     digitalWrite(_LED_PIN, false);
 
     //DEBUG
-    Serial.print("DBG: OK=");
-    Serial.print(looptransmit);
-    Serial.print("/");
-    Serial.print(loopcount);
-    Serial.print(" buflen=");
-    Serial.print(String(strlen(myBuffer)));
-    Serial.print(" freq=");
-    Serial.print(_RUN_PAUSE);
-    Serial.println("ms");
+    if (DEBUG){
+      Serial.print("DBG: OK=");
+      Serial.print(looptransmit);
+      Serial.print("/");
+      Serial.print(loopcount);
+      Serial.print(" buflen=");
+      Serial.print(String(strlen(myBuffer)));
+      Serial.print(" freq=");
+      Serial.print(_RUN_PAUSE);
+      Serial.println("ms");
+    }
 
     //Ne pas oublier de libérer l'allocation si utiliser la fontion string2Buffer
     //free(msg);
   }
   else {
-    Serial.println("No signal transmitted...");
+    if (DEBUG) Serial.println("No signal transmitted...");
   }
   delay(_RUN_PAUSE); // Et on attend 2s pour éviter que deux messages se superpose  
 }
@@ -231,7 +223,7 @@ char* string2Buffer(String mess){
 //---------------------------------------------------------------- Banner
 void bannerDisplay(){
   //delay(2000);  
-  if (Serial.available()){
+  if (Serial.available()&& (DEBUG)){
     Serial.println("TRANSMITTER BOARD SETUP..........");
     Serial.print("Version : ");
     Serial.println(TRANSMITTER_PROG_VERSION);
